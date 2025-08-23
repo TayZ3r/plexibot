@@ -26,8 +26,7 @@ USER 1001
 RUN if [ -f package-lock.json ]; then npm ci; else npm install; fi
 
 # Copie du reste du code + .env
-COPY --chown=1001:1001 . .
-COPY --chown=1001:1001 docker/.env.docker .env
+COPY docker/.env.docker .env
 
 ENV NODE_ENV=production
 
