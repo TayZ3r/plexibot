@@ -11,7 +11,7 @@ COPY docker/entrypoint.sh /sbin/entrypoint.sh
 RUN chmod +x /sbin/entrypoint.sh
 
 # Crée l'utilisateur 1001 (Debian/Ubuntu)
-RUN useradd --uid 1001 --create-home --shell /bin/bash user
+RUN useradd --shell /bin/bash user -u 1001 user
 
 WORKDIR /app
 
@@ -20,12 +20,14 @@ COPY package*.json ./
 
 # Propriété avant install
 RUN chown -R 1001:1001 /app
+RUN chmod -R 700 /app
 USER 1001
 
 # Install (préfère npm ci si lockfile présent)
 RUN if [ -f package-lock.json ]; then npm ci; else npm install; fi
 
 # Copie du reste du code + .env
+COPY . .
 COPY docker/.env.docker .env
 
 ENV NODE_ENV=production
