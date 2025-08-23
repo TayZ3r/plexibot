@@ -2,12 +2,12 @@ const client = require('../../../index');
 const {EmbedBuilder, PermissionsBitField} = require('discord.js');
 
 const ticketTypes = {
-    "1": "1149733957907267616",
-    "2": "1192516640160632942",
-    "3": "1079407749470892164",
-    "4": "1079407874754748506",
-    "5": "1079407969030119454",
-    "6": "1079408166644752434",
+    "1": "1309459343439036517",
+    "2": "1309459389757001778",
+    "3": "1309459445511884831",
+    "4": "1309459475010162779",
+    "5": "",
+    "6": "",
 };
 
 async function createTicket(interaction, type) {
@@ -41,10 +41,13 @@ async function createTicket(interaction, type) {
 
         const embed = new EmbedBuilder()
             .setTitle('📋 Support')
-            .setColor('#B526D8')
+            .setColor('#a0123b')
             .setDescription(`Bonjour ${interaction.user},\n\nMerci d'avoir contacté le support de **${interaction.guild.name}**.\n\nVeuillez décrire votre problème afin que nous puissions vous aider au mieux.`);
+        const embed2 = new EmbedBuilder()
+            .setColor('#a0123b')
+            .setDescription(`Déjà client chez Plexify ? Indiquez l'adresse email liée à votre compte Plex pour accélérer votre prise en charge.\n\nPour les essai gratuits:\nInscrivez-vous sur https://plex.tv/ et indiquez-nous votre adresse e-mail !`);
 
-        await channel.send({embeds: [embed]});
+        await channel.send({embeds: [embed, embed2]});
     } catch (error) {
         console.error("Erreur lors de la création du ticket", error);
     }

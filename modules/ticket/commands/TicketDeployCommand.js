@@ -8,10 +8,9 @@ module.exports = {
     run: async (client, interaction) => {
 
         const ticket = new EmbedBuilder()
-            .setTitle('Support')
-            .setColor('#2F3136')
-            .setDescription('Contactez notre support grâce à un ticket, il sera pris en charge dès que possible !\n\nAfin de créer un ticket et obtenir de l\'aide, réagissez avec la catégorie juste en dessous. 📩\n\n:warning: Merci de préciser votre pseudo et votre serveur en expliquant votre problème, plainte ou requête !')
-            .setTimestamp()
+            .setTitle('Support - Plexify :tv:')
+            .setColor('#a0123b')
+            .setDescription('Contactez notre équipe grâce à un ticket, il sera pris en charge dès que possible !\n\nAfin de créer un ticket et obtenir de l\'aide, réagissez avec la catégorie juste en dessous. 📩\n\n:warning: Merci de préciser votre adresse e-mail Plex et/ou Stripe en expliquant votre problème, plainte ou requête !')
 
         const row = new ActionRowBuilder()
             .addComponents(
@@ -20,23 +19,23 @@ module.exports = {
                     .setPlaceholder('Aucune catégorie sélectionnée')
                     .addOptions([
                         {
-                            label: '❓Problème en jeu',
-                            description: 'Bugs,Duplication,etc...',
+                            label: '🧏 Essai gratuit de 48h',
+                            description: 'Envie d\'essayer notre service gratuitement ?',
                             value: '1',
                         },
                         {
-                            label: '💎 Autres',
-                            description: 'Autres questions/problèmes.',
+                            label: '🤖 Technique',
+                            description: 'Un soucis avec l\'un de nos services ? C\'est ici !',
                             value: '2',
                         },
                         {
-                            label: '💸 Problème boutique',
-                            description: 'Problème avec un achat.',
+                            label: '💸 Commercial',
+                            description: 'Besoin d\'aide avec un paiement ?.',
                             value: '3',
                         },
                         {
-                            label: '🎥 Partenaire',
-                            description: 'Demande de grade.',
+                            label: '❓ Autre',
+                            description: 'Pour tout autre problème non-cité..',
                             value: '4',
                         }
                     ]),

@@ -18,29 +18,28 @@ tracker.on('guildMemberAdd', async (member, type, invite) => {
 
 
     const embed = new EmbedBuilder()
-        .setTitle('Bienvenue')
-        .setColor('#B526D8')
+        .setTitle('Plexify - Votre Service Ultime de Streaming')
+        .setColor('#a0123b')
         .setThumbnail(member.user.displayAvatarURL())
-        .setURL('https://google.fr')
         .setTimestamp()
 
     switch (type) {
         case 'normal':
-            embed.setDescription(`Bienvenue ${member.user} sur le discord\n\nNous sommes actuellement **${member.guild.memberCount}** membres !\n\nTu as été invité par ${invite.inviter.username}!`);
+            embed.setDescription(`Bienvenue ${member.user} sur le Discord de **Plexify** !\n\nNous sommes actuellement **${member.guild.memberCount}** membres !\n\nTu as été invité par ${invite.inviter.username} !`);
             break;
         case 'vanity':
-            embed.setDescription(`Bienvenue ${member.user} sur le discord\n\nNous sommes actuellement **${member.guild.memberCount}** membres !\n\nTu as rejoint en utilisant une invitation personnalisée !`);
+            embed.setDescription(`Bienvenue ${member.user} sur le Discord de **Plexify** !\n\nNous sommes actuellement **${member.guild.memberCount}** membres !\n\nTu as rejoint en utilisant une invitation personnalisée !`);
             break;
         case 'permissions':
-            embed.setDescription(`Bienvenue ${member.user} sur le discord\n\nNous sommes actuellement **${member.guild.memberCount}** membres !`);
+            embed.setDescription(`Bienvenue ${member.user} sur le Discord de **Plexify** !\n\nNous sommes actuellement **${member.guild.memberCount}** membres !`);
             break;
         case 'unknown':
-            embed.setDescription(`Bienvenue ${member.user} sur le discord\n\nNous sommes actuellement **${member.guild.memberCount}** membres !`);
+            embed.setDescription(`Bienvenue ${member.user} sur le Discord de **Plexify** !\n\nNous sommes actuellement **${member.guild.memberCount}** membres !`);
             break;
         default:
-            embed.setDescription(`Bienvenue ${member.user} sur le discord de **SkyHills !**\n\nNous sommes actuellement **${member.guild.memberCount}** membres !`);
+            embed.setDescription(`Bienvenue ${member.user} sur le Discord de **Plexify** !\n\nNous sommes actuellement **${member.guild.memberCount}** membres !`);
     }
 
-    await member.roles.add(process.env.MEMBER_ROLE_ID);
+    //await member.roles.add(process.env.MEMBER_ROLE_ID);
     await welcomeChannel.send({embeds: [embed]});
 });

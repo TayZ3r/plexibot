@@ -29,7 +29,7 @@ module.exports = {
 
         const close = new EmbedBuilder()
             .setTitle('📋 Support')
-            .setColor('#B526D8')
+            .setColor('#a0123b')
             .setDescription(`Ticket ouvert par <@${creator}> \nTicket fermé par ${interaction.user}\n\nTicket ouvert le ${formatDate(date, "dd/mm/yy HH:MM:ss")}\nTicket fermé le ${formatDate(new Date(), "dd/mm/yy HH:MM:ss")}`)
 
         await channel.send({
