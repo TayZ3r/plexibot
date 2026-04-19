@@ -26,4 +26,6 @@ services:
       - WELCOME_CHANNEL_ID=
       - MEMBER_ROLE_ID=
       - SUPPORT_ROLE_ID=
-      - TICKET_LOGS= 
+      - TICKET_LOGS=
+      - ADMIN_API_URL=http://plexify-admin:5000
+      - BOT_API_KEY=

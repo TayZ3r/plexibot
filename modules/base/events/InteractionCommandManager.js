@@ -1,6 +1,14 @@
 const client = require('../../../index');
 
 client.on("interactionCreate", async (interaction) => {
+    if (interaction.isAutocomplete()) {
+        const cmd = client.commands.get(interaction.commandName);
+        if (cmd?.autocomplete) {
+            await cmd.autocomplete(client, interaction).catch(console.error);
+        }
+        return;
+    }
+
     if (interaction.isChatInputCommand()) {
         await interaction.deferReply({ephemeral: false}).catch(() => {
         });
