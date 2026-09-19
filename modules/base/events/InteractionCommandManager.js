@@ -10,10 +10,11 @@ client.on("interactionCreate", async (interaction) => {
     }
 
     if (interaction.isChatInputCommand()) {
-        await interaction.deferReply({ephemeral: false}).catch(() => {
+        const cmd = client.commands.get(interaction.commandName);
+
+        await interaction.deferReply({ephemeral: Boolean(cmd?.ephemeral)}).catch(() => {
         });
 
-        const cmd = client.commands.get(interaction.commandName);
         if (!cmd) return interaction.followUp({content: "Une erreur est survenue."});
 
         const args = [];
