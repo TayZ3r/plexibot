@@ -6,6 +6,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3 make g++ bash \
  && rm -rf /var/lib/apt/lists/*
 
+# Claude Code, utilisé par le module recap pour rédiger le récap (auth via CLAUDE_CODE_OAUTH_TOKEN).
+# Mis à jour en reconstruisant l'image, pas par l'auto-update (dossier npm global non accessible en écriture).
+RUN npm install -g @anthropic-ai/claude-code
+ENV DISABLE_AUTOUPDATER=1
+
 # Entrypoint (et corriger le +X -> +x)
 COPY docker/entrypoint.sh /sbin/entrypoint.sh
 RUN chmod +x /sbin/entrypoint.sh

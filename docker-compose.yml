@@ -29,3 +29,8 @@ services:
       - TICKET_LOGS=
       - ADMIN_API_URL=http://plexify-admin:5000
       - BOT_API_KEY=
+      - CLAUDE_CODE_OAUTH_TOKEN=
+      - TMDB_API_KEY=
+      - TRAKT_CLIENT_ID=
+      - PLEX_URL=
+      - PLEX_TOKEN=
