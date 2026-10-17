@@ -38,27 +38,25 @@ function itemId(event) {
     return `${event.mediaType}:${event.tmdbId}`;
 }
 
-function toPayloadItem(event, plexIds) {
-    const item = {
+// Plateformes et chaînes ne sont volontairement pas transmises : le récap ne les cite pas,
+// seule la présence sur Plex est signalée (ajoutée au rendu, pas par Claude).
+function toPayloadItem(event) {
+    return {
         id: itemId(event),
         type: event.mediaType === 'movie' ? 'film' : 'série',
         titre: event.title,
         titre_original: event.originalTitle !== event.title ? event.originalTitle : undefined,
         date: event.date ?? undefined,
         saison: event.season ?? undefined,
-        plateformes: event.providers?.length ? event.providers : undefined,
-        chaines: event.networks?.length ? event.networks : undefined,
         note_tmdb: event.rating ?? undefined,
         popularite_tmdb: event.popularity,
         synopsis: event.overview ?? undefined,
     };
-    if (plexIds) item.sur_plex = plexIds[event.mediaType].has(event.tmdbId);
-    return item;
 }
 
 // Les tendances sont vues à chaque collecte : on les fusionne par titre en gardant
 // les signaux (source, liste, meilleur rang, nombre de collectes où il apparaît).
-function mergePopularity(events, plexIds) {
+function mergePopularity(events) {
     const byTitle = new Map();
     for (const event of events) {
         const id = itemId(event);
@@ -75,7 +73,7 @@ function mergePopularity(events, plexIds) {
     return [...byTitle.values()]
         .sort((a, b) => b.weight - a.weight)
         .slice(0, 20)
-        .map(({event, signals}) => ({...toPayloadItem(event, plexIds), signaux: signals}));
+        .map(({event, signals}) => ({...toPayloadItem(event), signaux: signals}));
 }
 
 async function loadPlexIds() {
@@ -96,26 +94,50 @@ function truncate(text, max) {
     return text.length > max ? `${text.slice(0, max - 1)}…` : text;
 }
 
-function buildEmbed(recap, {since, until, posterPath}) {
+// Ordre, emoji et intitulé de chaque section : fixés ici pour un rendu identique chaque semaine
+const SECTIONS = [
+    ['cinema', '🎬 Au cinéma'],
+    ['vod', '💿 En VOD'],
+    ['series', '📺 Séries'],
+    ['renouvellements', '🔁 Renouvelées'],
+    ['annulations', '❌ Annulées ou terminées'],
+    ['tendances', '🔥 Tendances'],
+    ['a_venir', '📅 À venir'],
+];
+const MAX_PER_SECTION = 4;
+
+function renderLine(item, info, plexIds) {
+    const onPlex = plexIds?.[item.mediaType]?.has(item.tmdbId);
+    return `**${item.title}** — ${truncate(info.trim(), 80)}${onPlex ? ' ✅' : ''}`;
+}
+
+function buildEmbed(recap, {since, until, titles, plexIds}) {
+    const featured = titles.get(recap.a_la_une);
     const embed = new EmbedBuilder()
         .setColor(EMBED_COLOR)
-        .setTitle(`🍿 Récap ciné & séries · du ${formatDay(since)} au ${formatDay(until)}`)
-        .setDescription(truncate(recap.introduction, 1000))
-        .setFooter({text: `Sources : TMDB${trakt.isEnabled() ? ' · Trakt' : ''} · Rédigé par Claude`})
-        .setTimestamp(until);
+        .setTitle('🍿 Récap ciné & séries')
+        .setDescription(`*${truncate(recap.introduction.trim(), 300)}*`)
+        .setFooter({
+            text: [
+                `Du ${formatDay(since)} au ${formatDay(until)}`,
+                plexIds ? '✅ dispo sur Plex' : null,
+                `Sources : TMDB${trakt.isEnabled() ? ' · Trakt' : ''}`,
+            ].filter(Boolean).join('  •  '),
+        });
 
-    // Limites Discord : 25 champs, 1024 caractères par champ, 6000 caractères au total
-    let budget = 6000 - embed.data.title.length - embed.data.description.length - embed.data.footer.text.length;
-    for (const section of recap.sections.slice(0, 10)) {
-        if (!section.lignes.length) continue;
-        const name = truncate(`${section.emoji} ${section.titre}`, 256);
-        const value = truncate(section.lignes.join('\n'), 1024);
-        if (name.length + value.length > budget) break;
-        budget -= name.length + value.length;
-        embed.addFields({name, value});
+    const used = new Set();
+    for (const [key, name] of SECTIONS) {
+        const lines = recap.sections
+            .filter(s => s.section === key)
+            .flatMap(s => s.elements)
+            // Ignore les ids inconnus et les doublons qu'aurait pu renvoyer Claude
+            .filter(e => titles.has(e.id) && !used.has(e.id) && used.add(e.id))
+            .slice(0, MAX_PER_SECTION)
+            .map(e => renderLine(titles.get(e.id), e.info, plexIds));
+        if (lines.length) embed.addFields({name, value: truncate(lines.join('\n'), 1024)});
     }
 
-    if (posterPath) embed.setThumbnail(`${POSTER_URL}${posterPath}`);
+    if (featured?.poster) embed.setThumbnail(`${POSTER_URL}${featured.poster}`);
     return embed;
 }
 
@@ -147,14 +169,19 @@ async function buildRecap({since: forcedSince, includeReported = false} = {}) {
             .slice(0, limit);
         if (!items.length) continue;
         selected.push(...items);
-        payload[KIND_LABELS[kind]] = items.map(e => toPayloadItem(e, plexIds));
+        payload[KIND_LABELS[kind]] = items.map(toPayloadItem);
     }
-    payload.populaires_du_moment = mergePopularity(popularity, plexIds);
+    payload.populaires_du_moment = mergePopularity(popularity);
 
     const recap = await writeRecap(payload);
 
-    const featured = events.find(e => itemId(e) === recap.a_la_une && e.poster);
-    const embed = buildEmbed(recap, {since, until, posterPath: featured?.poster});
+    // Titre exact et affiche de chaque id : le titre affiché vient des données, pas de Claude
+    const titles = new Map();
+    for (const event of events) {
+        const id = itemId(event);
+        if (!titles.has(id) || (!titles.get(id).poster && event.poster)) titles.set(id, event);
+    }
+    const embed = buildEmbed(recap, {since, until, titles, plexIds});
 
     return {embed, until, reportedKeys: selected.map(e => e.key)};
 }
