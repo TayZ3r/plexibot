@@ -8,59 +8,66 @@ const MODEL = 'opus';
 const TIMEOUT_MS = 5 * 60 * 1000;
 const MAX_ATTEMPTS = 2;
 
-const SECTION_KEYS = ['cinema', 'vod', 'series', 'renouvellements', 'annulations', 'tendances', 'a_venir'];
+const CATEGORY_KEYS = ['cinema', 'films', 'series', 'tendances'];
 
 const SYSTEM_PROMPT = `Tu prépares le récap hebdomadaire de l'actualité films et séries pour une communauté Discord francophone.
 
-Tu reçois en JSON les données collectées sur la période (TMDB et Trakt) : sorties cinéma, sorties VOD, films à venir, nouvelles séries, retours de saison, renouvellements, annulations, fins de série, tendances et titres les plus attendus. Chaque titre a un champ "id".
+Tu reçois en JSON les données collectées sur la période (TMDB et Trakt), déjà rangées par catégorie. Chaque titre a un champ "id".
+
+Le récap est publié en 4 messages, un par catégorie (clé "categorie") :
+- "cinema" : les sorties en salle de la semaine (données "sorties_cine").
+- "films" : les sorties en VOD / numérique et les films attendus prochainement au cinéma (données "films").
+- "series" : nouvelles séries, retours de saison, renouvellements, annulations et fins de série (données "series").
+- "tendances" : les titres les plus populaires ou les plus attendus du moment, films comme séries (données "tendances").
+N'inclus que les catégories qui ont du contenu.
+
+Longueur : l'ensemble des 4 catégories doit se lire en 2 minutes environ, soit 400 à 450 mots au total (introductions et textes compris), répartis selon la richesse de chaque catégorie.
 
 Sélection :
-- 10 à 12 titres au total, 4 au maximum par section. Privilégie ce qui intéresse le plus de monde : grosses sorties, séries populaires, renouvellement ou annulation d'une série connue. Un signal fort de popularité (rang élevé, présent sur plusieurs listes, popularité TMDB élevée) compte plus qu'une sortie confidentielle.
-- Un titre n'apparaît qu'une seule fois, dans la section la plus pertinente.
+- 3 à 6 titres par catégorie. Privilégie ce qui intéresse le plus de monde : grosses sorties, séries populaires, renouvellement ou annulation d'une série connue. Un signal fort de popularité (rang élevé, présent sur plusieurs listes, popularité TMDB élevée) compte plus qu'une sortie confidentielle.
+- Un titre n'apparaît qu'une seule fois dans tout le récap, dans la catégorie la plus pertinente.
+- Classe les titres du plus marquant au moins marquant : l'image du premier illustre la catégorie.
 
-Sections (clé "section") : "cinema" (sorties en salle), "vod" (sorties numériques), "series" (nouvelles séries et retours de saison), "renouvellements", "annulations" (annulations et fins de série), "tendances" (populaires ou très attendus du moment), "a_venir" (films qui sortent bientôt). N'inclus que les sections qui ont du contenu.
+Pour chaque catégorie :
+- "introduction" : une à deux phrases (30 mots maximum) qui donnent le ton de la catégorie cette semaine, sans lister les titres.
+- "elements" : pour chaque titre, son "id" et un "texte" de 20 à 40 mots, en français, sans répéter le titre (il est affiché automatiquement). Dis de quoi ça parle et pourquoi c'est notable cette semaine : date de sortie (format court, ex. « mer. 22 oct. »), saison, renouvellement ou annulation, note, popularité. Pour les séries, précise toujours de quoi il s'agit (nouvelle série, saison N, renouvelée, annulée, terminée).
 
-Pour chaque titre, donne son "id" et une accroche "info" :
-- 60 caractères maximum, en français, sans répéter le titre (il est affiché automatiquement).
-- Une seule info utile : la date (format court, ex. « mer. 22 oct. »), la saison (ex. « Saison 3 »), ou en quelques mots pourquoi c'est notable.
+Règles :
 - Ne mentionne jamais de plateforme de streaming, de chaîne ni de service de diffusion.
-- N'invente rien : uniquement ce qui figure dans les données.
-
-"introduction" : une phrase de 150 caractères maximum qui donne le ton de la semaine, sans lister de titres.
-"a_la_une" : l'id du titre le plus marquant de la période, dont l'affiche illustrera le message.
+- N'invente rien : uniquement ce qui figure dans les données (le synopsis peut être reformulé).
+- Ton vivant et accessible, phrases complètes, pas de liste à puces dans les textes.
 
 Réponds uniquement avec l'objet JSON demandé, sans texte autour.`;
 
 const OUTPUT_SCHEMA = {
     type: 'object',
     additionalProperties: false,
-    required: ['introduction', 'sections', 'a_la_une'],
+    required: ['categories'],
     properties: {
-        introduction: {type: 'string'},
-        sections: {
+        categories: {
             type: 'array',
             items: {
                 type: 'object',
                 additionalProperties: false,
-                required: ['section', 'elements'],
+                required: ['categorie', 'introduction', 'elements'],
                 properties: {
-                    section: {type: 'string', enum: SECTION_KEYS},
+                    categorie: {type: 'string', enum: CATEGORY_KEYS},
+                    introduction: {type: 'string'},
                     elements: {
                         type: 'array',
                         items: {
                             type: 'object',
                             additionalProperties: false,
-                            required: ['id', 'info'],
+                            required: ['id', 'texte'],
                             properties: {
                                 id: {type: 'string'},
-                                info: {type: 'string'},
+                                texte: {type: 'string'},
                             },
                         },
                     },
                 },
             },
         },
-        a_la_une: {type: 'string'},
     },
 };
 
@@ -116,11 +123,11 @@ function runClaude(input) {
 }
 
 function isValidRecap(recap) {
-    return typeof recap?.introduction === 'string'
-        && typeof recap.a_la_une === 'string'
-        && Array.isArray(recap.sections)
-        && recap.sections.every(s => SECTION_KEYS.includes(s.section) && Array.isArray(s.elements)
-            && s.elements.every(e => typeof e.id === 'string' && typeof e.info === 'string'));
+    return Array.isArray(recap?.categories)
+        && recap.categories.every(c => CATEGORY_KEYS.includes(c.categorie)
+            && typeof c.introduction === 'string'
+            && Array.isArray(c.elements)
+            && c.elements.every(e => typeof e.id === 'string' && typeof e.texte === 'string'));
 }
 
 function extractRecap(output) {
@@ -134,7 +141,7 @@ function extractRecap(output) {
     }
 }
 
-// Renvoie {introduction, sections: [{section, elements: [{id, info}]}], a_la_une}
+// Renvoie {categories: [{categorie, introduction, elements: [{id, texte}]}]}
 async function writeRecap(payload) {
     let lastError;
     for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {

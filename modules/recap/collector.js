@@ -130,6 +130,7 @@ async function collectShows(trendingShows, traktEvents) {
             originalTitle: show.originalTitle,
             overview: show.overview,
             poster: show.poster,
+            backdrop: show.backdrop,
             popularity: show.popularity,
             rating: show.rating,
             providers: show.providers,

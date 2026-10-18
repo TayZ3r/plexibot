@@ -113,7 +113,7 @@ module.exports = {
                     await interaction.editReply({content: 'Rien à récapituler pour le moment : la collecte n\'a encore rien trouvé.'});
                     return;
                 }
-                await interaction.editReply({content: '👀 Aperçu (non publié) :', embeds: [result.embed]});
+                await interaction.editReply({content: '👀 Aperçu (non publié) :', embeds: result.embeds});
                 return;
             }
 

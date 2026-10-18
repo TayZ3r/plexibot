@@ -6,10 +6,12 @@ const trakt = require('./trakt');
 const {writeRecap} = require('./writer');
 
 const DEFAULT_PERIOD_MS = 7 * 24 * 60 * 60 * 1000;
-const POSTER_URL = 'https://image.tmdb.org/t/p/w342';
-const EMBED_COLOR = 0xE5A00D;
+const IMAGE_URL = 'https://image.tmdb.org/t/p/w780';
+const PLEXIFY_EMOJI = '<:plexify_1:1309433875034013726>';
+// Les emojis personnalisés ne s'affichent pas dans un footer : on y met l'image de l'emoji en icône
+const PLEXIFY_ICON = 'https://cdn.discordapp.com/emojis/1309433875034013726.png';
 
-// Nombre maximum d'éléments transmis à Claude par catégorie (il en garde 10 à 15 au total)
+// Nombre maximum d'éléments transmis à Claude par type d'actualité
 const KIND_LIMITS = {
     movie_cinema: 10,
     movie_digital: 8,
@@ -21,15 +23,16 @@ const KIND_LIMITS = {
     tv_ended: 6,
 };
 
-const KIND_LABELS = {
-    movie_cinema: 'sorties_cinema',
-    movie_digital: 'sorties_vod',
-    movie_upcoming: 'films_a_venir',
-    tv_new: 'nouvelles_series',
-    tv_season: 'retours_de_saison',
-    tv_renewed: 'renouvellements',
-    tv_canceled: 'annulations',
-    tv_ended: 'fins_de_serie',
+// Catégorie (un embed chacune) et intitulé de chaque type d'actualité dans les données envoyées à Claude
+const KIND_GROUPS = {
+    movie_cinema: ['sorties_cine', 'en_salle'],
+    movie_digital: ['films', 'sorties_vod'],
+    movie_upcoming: ['films', 'prochainement_au_cinema'],
+    tv_new: ['series', 'nouvelles_series'],
+    tv_season: ['series', 'retours_de_saison'],
+    tv_renewed: ['series', 'renouvellements'],
+    tv_canceled: ['series', 'annulations'],
+    tv_ended: ['series', 'fins_de_serie'],
 };
 
 const POPULARITY_KINDS = ['trending', 'anticipated'];
@@ -94,51 +97,62 @@ function truncate(text, max) {
     return text.length > max ? `${text.slice(0, max - 1)}…` : text;
 }
 
-// Ordre, emoji et intitulé de chaque section : fixés ici pour un rendu identique chaque semaine
-const SECTIONS = [
-    ['cinema', '🎬 Au cinéma'],
-    ['vod', '💿 En VOD'],
-    ['series', '📺 Séries'],
-    ['renouvellements', '🔁 Renouvelées'],
-    ['annulations', '❌ Annulées ou terminées'],
-    ['tendances', '🔥 Tendances'],
-    ['a_venir', '📅 À venir'],
+// Ordre, titre et couleur de chaque embed. Les couleurs suivent le dégradé du logo Plexify (rouge → bleu).
+const CATEGORIES = [
+    {key: 'cinema', title: '🎬 Sorties ciné', color: 0xDB0000},
+    {key: 'films', title: '🎞️ Films', color: 0xA0123D},
+    {key: 'series', title: '📺 Séries', color: 0x642379},
+    {key: 'tendances', title: '🔥 Tendances', color: 0x2935B6},
 ];
-const MAX_PER_SECTION = 4;
+const MAX_PER_CATEGORY = 6;
 
-function renderLine(item, info, plexIds) {
+function renderItem(item, text, plexIds) {
     const onPlex = plexIds?.[item.mediaType]?.has(item.tmdbId);
-    return `**${item.title}** — ${truncate(info.trim(), 80)}${onPlex ? ' ✅' : ''}`;
+    return `**${item.title}**${onPlex ? ` ${PLEXIFY_EMOJI}` : ''}\n${truncate(text.trim(), 350)}`;
 }
 
-function buildEmbed(recap, {since, until, titles, plexIds}) {
-    const featured = titles.get(recap.a_la_une);
-    const embed = new EmbedBuilder()
-        .setColor(EMBED_COLOR)
-        .setTitle('🍿 Récap ciné & séries')
-        .setDescription(`*${truncate(recap.introduction.trim(), 300)}*`)
-        .setFooter({
-            text: [
-                `Du ${formatDay(since)} au ${formatDay(until)}`,
-                plexIds ? '✅ dispo sur Plex' : null,
-                `Sources : TMDB${trakt.isEnabled() ? ' · Trakt' : ''}`,
-            ].filter(Boolean).join('  •  '),
-        });
-
+function buildEmbeds(recap, {since, until, titles, plexIds}) {
     const used = new Set();
-    for (const [key, name] of SECTIONS) {
-        const lines = recap.sections
-            .filter(s => s.section === key)
-            .flatMap(s => s.elements)
+    const embeds = [];
+
+    for (const {key, title, color} of CATEGORIES) {
+        const category = recap.categories.find(c => c.categorie === key);
+        if (!category) continue;
+        const elements = category.elements
             // Ignore les ids inconnus et les doublons qu'aurait pu renvoyer Claude
             .filter(e => titles.has(e.id) && !used.has(e.id) && used.add(e.id))
-            .slice(0, MAX_PER_SECTION)
-            .map(e => renderLine(titles.get(e.id), e.info, plexIds));
-        if (lines.length) embed.addFields({name, value: truncate(lines.join('\n'), 1024)});
+            .slice(0, MAX_PER_CATEGORY);
+        if (!elements.length) continue;
+
+        const items = elements.map(e => titles.get(e.id));
+        const description = [
+            `*${truncate(category.introduction.trim(), 250)}*`,
+            ...elements.map((e, i) => renderItem(items[i], e.texte, plexIds)),
+        ].join('\n\n');
+
+        const embed = new EmbedBuilder()
+            .setColor(color)
+            .setTitle(title)
+            .setDescription(truncate(description, 4096));
+
+        // Image du titre le plus marquant de la catégorie (Claude les classe par importance)
+        const illustrated = items.find(item => item.backdrop) ?? items.find(item => item.poster);
+        const image = illustrated?.backdrop ?? illustrated?.poster;
+        if (image) embed.setImage(`${IMAGE_URL}${image}`);
+
+        embeds.push(embed);
     }
 
-    if (featured?.poster) embed.setThumbnail(`${POSTER_URL}${featured.poster}`);
-    return embed;
+    // Période, légende et sources une seule fois, sous le dernier embed
+    embeds.at(-1)?.setFooter({
+        text: [
+            plexIds ? 'dispo sur Plexify' : null,
+            `Du ${formatDay(since)} au ${formatDay(until)}`,
+            `Sources : TMDB${trakt.isEnabled() ? ' · Trakt' : ''}`,
+        ].filter(Boolean).join('  •  '),
+        iconURL: plexIds ? PLEXIFY_ICON : undefined,
+    });
+    return embeds;
 }
 
 // Compile les événements collectés depuis le dernier récap et fait rédiger le message.
@@ -169,21 +183,26 @@ async function buildRecap({since: forcedSince, includeReported = false} = {}) {
             .slice(0, limit);
         if (!items.length) continue;
         selected.push(...items);
-        payload[KIND_LABELS[kind]] = items.map(toPayloadItem);
+        const [group, label] = KIND_GROUPS[kind];
+        payload[group] = {...payload[group], [label]: items.map(toPayloadItem)};
     }
-    payload.populaires_du_moment = mergePopularity(popularity);
+    payload.tendances = mergePopularity(popularity);
 
     const recap = await writeRecap(payload);
 
-    // Titre exact et affiche de chaque id : le titre affiché vient des données, pas de Claude
+    // Titre exact et images de chaque id : le titre affiché vient des données, pas de Claude
     const titles = new Map();
     for (const event of events) {
         const id = itemId(event);
-        if (!titles.has(id) || (!titles.get(id).poster && event.poster)) titles.set(id, event);
+        const known = titles.get(id);
+        if (!known || (!known.backdrop && event.backdrop) || (!known.poster && !known.backdrop && event.poster)) {
+            titles.set(id, event);
+        }
     }
-    const embed = buildEmbed(recap, {since, until, titles, plexIds});
+    const embeds = buildEmbeds(recap, {since, until, titles, plexIds});
+    if (!embeds.length) throw new Error('Claude Code n\'a renvoyé aucun titre exploitable');
 
-    return {embed, until, reportedKeys: selected.map(e => e.key)};
+    return {embeds, until, reportedKeys: selected.map(e => e.key)};
 }
 
 async function publishRecap() {
@@ -194,7 +213,7 @@ async function publishRecap() {
     if (!result) return null;
 
     const channel = await client.channels.fetch(config.channelId);
-    const message = await channel.send({embeds: [result.embed]});
+    const message = await channel.send({embeds: result.embeds});
 
     await store.markReported(result.reportedKeys);
     await store.updateConfig({lastRecapAt: result.until.getTime()});
@@ -209,7 +228,7 @@ async function publishTestRecap(channel) {
         includeReported: true,
     });
     if (!result) return null;
-    return channel.send({content: '🧪 Récap de test (7 derniers jours)', embeds: [result.embed]});
+    return channel.send({content: '🧪 Récap de test (7 derniers jours)', embeds: result.embeds});
 }
 
 module.exports = {buildRecap, publishRecap, publishTestRecap};

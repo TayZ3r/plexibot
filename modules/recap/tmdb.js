@@ -44,6 +44,7 @@ function normalize(item, mediaType) {
         date: item.release_date ?? item.first_air_date ?? null,
         overview: truncate(item.overview, 280),
         poster: item.poster_path ?? null,
+        backdrop: item.backdrop_path ?? null,
         popularity: Math.round(item.popularity ?? 0),
         rating: item.vote_average ? Math.round(item.vote_average * 10) / 10 : null,
     };
