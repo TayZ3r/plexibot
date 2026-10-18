@@ -101,8 +101,8 @@ async function collectShows(trendingShows, traktEvents) {
     ]);
 
     const listedIds = new Set([
-        ...trendingShows.map(s => s.tmdbId),
-        ...traktEvents.filter(e => e.mediaType === 'tv').map(e => e.tmdbId),
+        ...trendingShows.filter(tmdb.isWestern).map(s => s.tmdbId),
+        ...traktEvents.filter(e => e.mediaType === 'tv' && tmdb.isWestern(e)).map(e => e.tmdbId),
         ...listed.map(s => s.tmdbId),
         ...newShows.slice(0, 15).map(s => s.tmdbId),
     ]);
@@ -128,9 +128,10 @@ async function collectShows(trendingShows, traktEvents) {
             tmdbId: show.tmdbId,
             title: show.title,
             originalTitle: show.originalTitle,
+            originalLanguage: show.originalLanguage,
+            originCountry: show.originCountry,
             overview: show.overview,
             poster: show.poster,
-            backdrop: show.backdrop,
             popularity: show.popularity,
             rating: show.rating,
             providers: show.providers,
@@ -218,7 +219,9 @@ async function collect() {
         traktEvents,
     ));
 
-    const events = [...trendingEvents, ...traktEvents, ...cinema, ...digital, ...upcoming, ...shows];
+    // Les tendances gardent leur vrai rang TMDB/Trakt : on filtre l'origine après le classement
+    const events = [...trendingEvents, ...traktEvents, ...cinema, ...digital, ...upcoming, ...shows]
+        .filter(tmdb.isWestern);
     await store.upsertEvents(events);
 
     console.log(`[Recap] Collecte terminée : ${events.length} éléments en ${Math.round((Date.now() - started) / 1000)}s`);

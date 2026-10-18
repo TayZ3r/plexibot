@@ -34,6 +34,23 @@ function truncate(text, max) {
     return text.length > max ? `${text.slice(0, max - 1)}…` : text;
 }
 
+// Le récap vise un public occidental : contenus américains et européens surtout.
+// Langue originale ET pays d'origine (quand TMDB le fournit) doivent être dans ces listes.
+const WESTERN_LANGUAGES = new Set([
+    'en', 'fr', 'es', 'de', 'it', 'pt', 'nl', 'sv', 'da', 'no', 'nb', 'fi', 'is', 'pl', 'ca',
+]);
+const WESTERN_COUNTRIES = new Set([
+    'US', 'CA', 'GB', 'IE', 'AU', 'NZ',
+    'FR', 'BE', 'CH', 'LU', 'MC', 'DE', 'AT', 'IT', 'ES', 'PT', 'NL', 'DK', 'SE', 'NO', 'FI', 'IS', 'PL',
+]);
+
+// Un titre sans langue connue (ancien élément collecté avant ce filtre) est écarté
+function isWestern(item) {
+    if (!WESTERN_LANGUAGES.has(item.originalLanguage)) return false;
+    const countries = item.originCountry ?? [];
+    return !countries.length || countries.some(c => WESTERN_COUNTRIES.has(c));
+}
+
 // Forme commune à tous les éléments collectés, quelle que soit la source
 function normalize(item, mediaType) {
     return {
@@ -41,10 +58,11 @@ function normalize(item, mediaType) {
         tmdbId: item.id,
         title: item.title ?? item.name,
         originalTitle: item.original_title ?? item.original_name,
+        originalLanguage: item.original_language ?? null,
+        originCountry: item.origin_country ?? item.production_countries?.map(c => c.iso_3166_1) ?? [],
         date: item.release_date ?? item.first_air_date ?? null,
         overview: truncate(item.overview, 280),
         poster: item.poster_path ?? null,
-        backdrop: item.backdrop_path ?? null,
         popularity: Math.round(item.popularity ?? 0),
         rating: item.vote_average ? Math.round(item.vote_average * 10) / 10 : null,
     };
@@ -65,7 +83,7 @@ async function discoverMovies({from, to, releaseTypes}) {
         sort_by: 'popularity.desc',
         'vote_count.gte': 0,
     });
-    return data.results.map(item => normalize(item, 'movie'));
+    return data.results.map(item => normalize(item, 'movie')).filter(isWestern);
 }
 
 // Date de sortie française réelle (la date "primaire" de TMDB est souvent celle des US)
@@ -85,7 +103,7 @@ async function discoverNewShows({from, to}) {
         sort_by: 'popularity.desc',
         'vote_count.gte': 0,
     });
-    return data.results.map(item => normalize(item, 'tv'));
+    return data.results.map(item => normalize(item, 'tv')).filter(isWestern);
 }
 
 async function showLists() {
@@ -94,7 +112,9 @@ async function showLists() {
         get('/tv/on_the_air'),
         get('/tv/on_the_air', {page: 2}),
     ]);
-    return [...popular.results, ...onTheAir1.results, ...onTheAir2.results].map(item => normalize(item, 'tv'));
+    return [...popular.results, ...onTheAir1.results, ...onTheAir2.results]
+        .map(item => normalize(item, 'tv'))
+        .filter(isWestern);
 }
 
 async function showDetails(showId) {
@@ -124,6 +144,7 @@ async function showSummary(showId) {
 
 module.exports = {
     isoDay,
+    isWestern,
     trending,
     discoverMovies,
     frenchReleaseDate,

@@ -21,16 +21,17 @@ Le récap est publié en 4 messages, un par catégorie (clé "categorie") :
 - "tendances" : les titres les plus populaires ou les plus attendus du moment, films comme séries (données "tendances").
 N'inclus que les catégories qui ont du contenu.
 
-Longueur : l'ensemble des 4 catégories doit se lire en 2 minutes environ, soit 400 à 450 mots au total (introductions et textes compris), répartis selon la richesse de chaque catégorie.
+Longueur : l'ensemble des 4 catégories doit se lire en 1 minute 30 environ, soit 300 à 330 mots au total (introductions et textes compris), répartis selon la richesse de chaque catégorie.
 
 Sélection :
-- 3 à 6 titres par catégorie. Privilégie ce qui intéresse le plus de monde : grosses sorties, séries populaires, renouvellement ou annulation d'une série connue. Un signal fort de popularité (rang élevé, présent sur plusieurs listes, popularité TMDB élevée) compte plus qu'une sortie confidentielle.
+- 3 à 5 titres par catégorie, uniquement du grand public pour un public occidental (France, Europe, États-Unis) : blockbusters, films et séries américains ou européens connus, franchises, séries populaires, renouvellement ou annulation d'une série connue. Un signal fort de popularité (rang élevé, présent sur plusieurs listes, popularité TMDB élevée) est décisif.
+- Écarte tout ce qui est confidentiel ou de niche : petites productions, films d'auteur peu connus, contenus locaux d'Asie, d'Inde, d'Amérique latine, etc. Mieux vaut une catégorie de 3 titres solides que de la remplir avec des titres inconnus.
 - Un titre n'apparaît qu'une seule fois dans tout le récap, dans la catégorie la plus pertinente.
 - Classe les titres du plus marquant au moins marquant : l'image du premier illustre la catégorie.
 
 Pour chaque catégorie :
-- "introduction" : une à deux phrases (30 mots maximum) qui donnent le ton de la catégorie cette semaine, sans lister les titres.
-- "elements" : pour chaque titre, son "id" et un "texte" de 20 à 40 mots, en français, sans répéter le titre (il est affiché automatiquement). Dis de quoi ça parle et pourquoi c'est notable cette semaine : date de sortie (format court, ex. « mer. 22 oct. »), saison, renouvellement ou annulation, note, popularité. Pour les séries, précise toujours de quoi il s'agit (nouvelle série, saison N, renouvelée, annulée, terminée).
+- "introduction" : une phrase (20 mots maximum) qui donnent le ton de la catégorie cette semaine, sans lister les titres.
+- "elements" : pour chaque titre, son "id" et un "texte" de 15 à 25 mots, en français, sans répéter le titre (il est affiché automatiquement). Dis de quoi ça parle et pourquoi c'est notable cette semaine : date de sortie (format court, ex. « mer. 22 oct. »), saison, renouvellement ou annulation, note, popularité. Pour les séries, précise toujours de quoi il s'agit (nouvelle série, saison N, renouvelée, annulée, terminée).
 
 Règles :
 - Ne mentionne jamais de plateforme de streaming, de chaîne ni de service de diffusion.

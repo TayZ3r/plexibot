@@ -3,24 +3,26 @@ const client = require('../../index');
 const store = require('./store');
 const plex = require('./plex');
 const trakt = require('./trakt');
+const tmdb = require('./tmdb');
 const {writeRecap} = require('./writer');
 
 const DEFAULT_PERIOD_MS = 7 * 24 * 60 * 60 * 1000;
-const IMAGE_URL = 'https://image.tmdb.org/t/p/w780';
+const POSTER_URL = 'https://image.tmdb.org/t/p/w342';
 const PLEXIFY_EMOJI = '<:plexify_1:1309433875034013726>';
 // Les emojis personnalisés ne s'affichent pas dans un footer : on y met l'image de l'emoji en icône
 const PLEXIFY_ICON = 'https://cdn.discordapp.com/emojis/1309433875034013726.png';
 
 // Nombre maximum d'éléments transmis à Claude par type d'actualité
+// Volontairement bas : seuls les titres les plus populaires sont proposés, pour rester grand public
 const KIND_LIMITS = {
-    movie_cinema: 10,
-    movie_digital: 8,
-    movie_upcoming: 6,
-    tv_new: 10,
-    tv_season: 10,
-    tv_renewed: 10,
-    tv_canceled: 10,
-    tv_ended: 6,
+    movie_cinema: 8,
+    movie_digital: 6,
+    movie_upcoming: 5,
+    tv_new: 6,
+    tv_season: 8,
+    tv_renewed: 6,
+    tv_canceled: 6,
+    tv_ended: 4,
 };
 
 // Catégorie (un embed chacune) et intitulé de chaque type d'actualité dans les données envoyées à Claude
@@ -75,7 +77,7 @@ function mergePopularity(events) {
     }
     return [...byTitle.values()]
         .sort((a, b) => b.weight - a.weight)
-        .slice(0, 20)
+        .slice(0, 15)
         .map(({event, signals}) => ({...toPayloadItem(event), signaux: signals}));
 }
 
@@ -104,11 +106,11 @@ const CATEGORIES = [
     {key: 'series', title: '📺 Séries', color: 0x642379},
     {key: 'tendances', title: '🔥 Tendances', color: 0x2935B6},
 ];
-const MAX_PER_CATEGORY = 6;
+const MAX_PER_CATEGORY = 5;
 
 function renderItem(item, text, plexIds) {
     const onPlex = plexIds?.[item.mediaType]?.has(item.tmdbId);
-    return `**${item.title}**${onPlex ? ` ${PLEXIFY_EMOJI}` : ''}\n${truncate(text.trim(), 350)}`;
+    return `**${item.title}**${onPlex ? ` ${PLEXIFY_EMOJI}` : ''}\n${truncate(text.trim(), 220)}`;
 }
 
 function buildEmbeds(recap, {since, until, titles, plexIds}) {
@@ -135,10 +137,9 @@ function buildEmbeds(recap, {since, until, titles, plexIds}) {
             .setTitle(title)
             .setDescription(truncate(description, 4096));
 
-        // Image du titre le plus marquant de la catégorie (Claude les classe par importance)
-        const illustrated = items.find(item => item.backdrop) ?? items.find(item => item.poster);
-        const image = illustrated?.backdrop ?? illustrated?.poster;
-        if (image) embed.setImage(`${IMAGE_URL}${image}`);
+        // Affiche du titre le plus marquant de la catégorie (Claude les classe par importance)
+        const poster = items.find(item => item.poster)?.poster;
+        if (poster) embed.setThumbnail(`${POSTER_URL}${poster}`);
 
         embeds.push(embed);
     }
@@ -163,8 +164,9 @@ async function buildRecap({since: forcedSince, includeReported = false} = {}) {
     const until = new Date();
     const since = forcedSince ?? new Date(config.lastRecapAt ?? until.getTime() - DEFAULT_PERIOD_MS);
 
+    // L'origine est aussi vérifiée ici pour écarter les éléments stockés avant l'ajout du filtre
     const events = Object.values(await store.getEvents())
-        .filter(e => e.lastSeen >= since.getTime());
+        .filter(e => e.lastSeen >= since.getTime() && tmdb.isWestern(e));
 
     const popularity = events.filter(e => POPULARITY_KINDS.includes(e.kind));
     // Les annonces déjà publiées dans un précédent récap ne sont pas répétées
@@ -190,14 +192,12 @@ async function buildRecap({since: forcedSince, includeReported = false} = {}) {
 
     const recap = await writeRecap(payload);
 
-    // Titre exact et images de chaque id : le titre affiché vient des données, pas de Claude
+    // Titre exact et affiche de chaque id : le titre affiché vient des données, pas de Claude
     const titles = new Map();
     for (const event of events) {
         const id = itemId(event);
         const known = titles.get(id);
-        if (!known || (!known.backdrop && event.backdrop) || (!known.poster && !known.backdrop && event.poster)) {
-            titles.set(id, event);
-        }
+        if (!known || (!known.poster && event.poster)) titles.set(id, event);
     }
     const embeds = buildEmbeds(recap, {since, until, titles, plexIds});
     if (!embeds.length) throw new Error('Claude Code n\'a renvoyé aucun titre exploitable');
