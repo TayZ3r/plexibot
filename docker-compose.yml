@@ -11,6 +11,9 @@ services:
     container_name: BotCore
     volumes:
       - bot:/app
+    # Webhook Overseerr/Plexify (inutile d'exposer si Plexify est sur le même réseau Docker)
+    ports:
+      - "3000:3000"
     environment:
       - TOKEN=
       - PRESENCE_ROLE=
@@ -34,3 +37,6 @@ services:
       - TRAKT_CLIENT_ID=
       - PLEX_URL=
       - PLEX_TOKEN=
+      - OVERSEERR_WEBHOOK_PORT=3000
+      - OVERSEERR_WEBHOOK_SECRET=
+      - OVERSEERR_TEST_DISCORD_ID=

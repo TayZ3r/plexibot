@@ -36,4 +36,7 @@ COPY --chown=1001:1001 docker/.env.docker .env
 
 ENV NODE_ENV=production
 
+# Webhook Overseerr/Plexify (module overseerr)
+EXPOSE 3000
+
 ENTRYPOINT ["/sbin/entrypoint.sh"]

@@ -42,6 +42,21 @@ Un message d'embed est affiché lorsque quelqu'un booste le serveur Discord.
 Les utilisateurs obtenant un statut spécifique (comme discord.gg/akira) recevront un rôle associé. Si le statut est retiré, le rôle sera également retiré automatiquement.
 
 
+### 9. Notifications Plexify (Overseerr) en message privé
+
+Quand un film ou une série demandé sur Plexify devient disponible, le bot envoie un DM au demandeur (embed avec l'affiche et le lien TMDb). Le demandeur doit avoir renseigné son ID Discord dans son profil Plexify (Paramètres > Notifications > Discord).
+
+Configuration :
+1. Renseigner `OVERSEERR_WEBHOOK_SECRET` (une chaîne aléatoire) et éventuellement `OVERSEERR_WEBHOOK_PORT` (3000 par défaut) et `OVERSEERR_TEST_DISCORD_ID`.
+2. Dans Plexify : Paramètres > Notifications > Webhook
+   - Activer l'agent, cocher le type « Média disponible »
+   - URL : `http://<hôte du bot>:3000/overseerr` (ex. `http://BotCore:3000/overseerr` si les deux conteneurs partagent un réseau Docker)
+   - Authorization Header : la même valeur que `OVERSEERR_WEBHOOK_SECRET`
+   - Laisser le JSON Payload par défaut
+3. Le bouton « Tester » envoie un DM à `OVERSEERR_TEST_DISCORD_ID`.
+
+Vérification : `GET http://<hôte du bot>:3000/overseerr/health`.
+
 ## Installation avec Docker
 
 1. Cloner le repos 
